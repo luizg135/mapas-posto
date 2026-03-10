@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         /* Bloqueia a rolagem padrão da página para agir como uma App */
@@ -36,13 +37,16 @@
         }
         .custom-pin:hover { transform: scale(1.1); }
         .pin-icon { width: 20px; height: 20px; }
+        
+        /* Cores Dinâmicas dos Pins */
         .validated-pin { border: 3px solid #10b981; color: #10b981; }
         .standard-pin { border: 3px solid #235937; color: #235937; }
+        .not-working-pin { border: 3px solid #ef4444; color: #ef4444; opacity: 0.85; background-color: #fef2f2; }
 
         /* Lista Flutuante (Bottom Sheet) */
         #bottom-sheet {
             position: absolute; bottom: 0; left: 0; right: 0;
-            height: 65vh; /* Ocupa 65% da tela quando aberto */
+            height: 70vh; /* Ocupa 70% da tela quando aberto */
             background-color: #f8fafc; z-index: 500;
             border-top-left-radius: 1.5rem; border-top-right-radius: 1.5rem;
             box-shadow: 0 -5px 25px rgba(0,0,0,0.1);
@@ -51,39 +55,43 @@
         }
 
         /* Área do "Puxador" para abrir/fechar */
-        .sheet-handle { height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .sheet-handle { height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; touch-action: none; }
         .handle-bar { width: 48px; height: 6px; background-color: #cbd5e1; border-radius: 999px; }
 
-        /* Estilização da rolagem da lista */
+        /* Estilização da rolagem */
         .custom-scroll { overflow-y: auto; flex: 1; padding-bottom: 2rem; }
         .custom-scroll::-webkit-scrollbar { width: 5px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        /* Esconde barra de rolagem horizontal nos filtros */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         
         .station-card { transition: background-color 0.2s; }
         .station-card:active { background-color: #f1f5f9; }
 
         /* Lógica de ocultação do Zoom via CSS no Mobile */
         @media (max-width: 1023px) {
-            body:not(.sheet-collapsed) .leaflet-control-zoom {
-                display: none !important;
-            }
+            body:not(.sheet-collapsed) .leaflet-control-zoom { display: none !important; }
         }
+
+        /* Input Slider de Raio */
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: #235937; cursor: pointer; margin-top: -8px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #e2e8f0; border-radius: 4px; }
 
         /* Layout para Telas Grandes (Desktop/Tablet) */
         @media (min-width: 1024px) {
             #bottom-sheet {
-                top: 0; bottom: 0; right: 0; left: auto;
-                width: 420px; height: 100vh;
-                border-radius: 0; box-shadow: -5px 0 25px rgba(0,0,0,0.1);
-                transform: none !important; /* Desativa a animação de subir/descer no PC */
+                top: 0; bottom: 0; right: 0; left: auto; width: 420px; height: 100vh;
+                border-radius: 0; box-shadow: -5px 0 25px rgba(0,0,0,0.1); transform: none !important;
             }
-            .sheet-handle { display: none; } /* Esconde o puxador no PC */
+            .sheet-handle { display: none; }
             .leaflet-control-zoom { display: block !important; }
         }
-
         .leaflet-control-zoom { border: none !important; box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important; margin-top: 20px !important;}
         .leaflet-control-zoom a { color: #235937 !important; }
-        .leaflet-top.leaflet-left { top: 80px; } /* Desce os controles do mapa para não bater no GPS */
+        .leaflet-top.leaflet-left { top: 80px; } 
     </style>
 </head>
 <body>
@@ -91,42 +99,117 @@
     <!-- MAPA (Ocupa a tela inteira no fundo) -->
     <div id="map"></div>
 
-    <!-- BOTÃO GPS (Sempre no topo direito - Fundo Verde, Ícone Branco) -->
-    <button onclick="getUserLocation()" class="absolute top-5 right-5 z-[500] bg-[#235937] text-white p-3.5 rounded-2xl shadow-[0_4px_20px_rgba(35,89,55,0.4)] border border-[#1a4329] flex items-center justify-center hover:bg-[#1a4329] active:scale-95 transition-all">
+    <!-- BOTÃO GPS -->
+    <button onclick="getUserLocation()" class="absolute top-5 right-5 z-[400] bg-[#235937] text-white p-3.5 rounded-2xl shadow-[0_4px_20px_rgba(35,89,55,0.4)] border border-[#1a4329] flex items-center justify-center hover:bg-[#1a4329] active:scale-95 transition-all">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
     </button>
 
-    <!-- PAINEL DA LISTA (Desliza por cima do mapa no Mobile) -->
+    <!-- PAINEL DA LISTA -->
     <div id="bottom-sheet">
-        <!-- Puxador (Mobile) -->
-        <div class="sheet-handle" onclick="toggleSheet()">
-            <div class="handle-bar"></div>
+        <!-- CABEÇALHO ARRASTÁVEL -->
+        <div id="drag-header" class="flex-shrink-0 touch-pan-y">
+            <!-- Puxador (Mobile) -->
+            <div class="sheet-handle">
+                <div class="handle-bar"></div>
+            </div>
+
+            <div class="px-5">
+                <!-- Barra de Busca e Filtros -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 mb-3 lg:mt-6 p-3 relative">
+                    <div class="flex gap-2">
+                        <div class="relative flex-1">
+                            <!-- Input atualizado com oninput para as Sugestões -->
+                            <input type="text" id="city-search" oninput="handleSearch(this.value)" placeholder="Buscar posto ou cidade..." autocomplete="off"
+                                   class="w-full bg-slate-50 border border-slate-100 rounded-xl pl-10 pr-4 py-3 text-[14px] font-medium placeholder-slate-400 focus:ring-2 focus:ring-[#235937]/20 outline-none transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3.5 top-3.5 text-[#235937]/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            
+                            <!-- Caixa de Sugestões (Autocomplete) -->
+                            <ul id="suggestions-box" class="absolute z-[600] w-full bg-white rounded-xl shadow-xl border border-slate-100 mt-2 hidden max-h-48 overflow-y-auto"></ul>
+                        </div>
+                        
+                        <!-- Botão de Configuração de Distância -->
+                        <button onclick="openConfig()" class="bg-slate-50 border border-slate-100 hover:bg-slate-100 text-slate-500 p-3 rounded-xl transition-colors flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Chips de Filtro (Múltipla Seleção) -->
+                    <div class="flex gap-2 mt-3 overflow-x-auto scrollbar-hide pb-1 items-center">
+                        <button onclick="toggleFilter('all')" id="filter-all" class="filter-btn flex-shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors bg-[#235937] text-white shadow-sm">Todos</button>
+                        <button onclick="toggleFilter('working')" id="filter-working" class="filter-btn flex-shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200">Funciona</button>
+                        <button onclick="toggleFilter('default')" id="filter-default" class="filter-btn flex-shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200">Credenciado</button>
+                        <button onclick="toggleFilter('not_working')" id="filter-not_working" class="filter-btn flex-shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200">Não Funciona</button>
+                    </div>
+                </div>
+
+                <!-- Cabeçalho de Resultados -->
+                <div class="flex items-center justify-between mb-3 px-1">
+                    <h2 class="font-bold text-slate-800 text-lg">Postos Próximos</h2>
+                    <span id="counter" class="text-xs font-bold bg-[#235937]/10 text-[#235937] px-3 py-1 rounded-full">0 locais</span>
+                </div>
+            </div>
         </div>
 
-        <div class="flex-1 flex flex-col px-5 overflow-hidden">
-            <!-- Barra de Busca -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 mb-4 relative flex-shrink-0 lg:mt-6">
-                <input type="text" id="city-search" oninput="filterStations()" placeholder="Buscar posto ou cidade..." 
-                       class="w-full bg-transparent border-none pl-12 pr-4 py-3.5 text-[15px] font-medium placeholder-slate-400 focus:ring-0 outline-none">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-4 top-4 text-[#235937]/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-            </div>
-
-            <!-- Cabeçalho de Resultados -->
-            <div class="flex items-center justify-between mb-3 px-1 flex-shrink-0">
-                <h2 class="font-bold text-slate-800 text-lg">Postos na Região</h2>
-                <span id="counter" class="text-xs font-bold bg-[#235937]/10 text-[#235937] px-3 py-1 rounded-full">0 locais</span>
-            </div>
-
-            <!-- Lista de Cartões (Rolagem Interna) -->
-            <div id="station-list" class="custom-scroll flex flex-col gap-3 relative pb-20">
-                <!-- Vazio, preenchido via JS -->
-            </div>
+        <!-- Lista de Cartões (Rolagem Interna) -->
+        <div id="station-list" class="custom-scroll flex flex-col gap-3 relative pb-20 px-5">
+            <!-- Vazio, preenchido via JS -->
         </div>
+    </div>
+
+    <!-- MODAL DE CONFIGURAÇÃO DE RAIO -->
+    <div id="config-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[2000] hidden flex-col items-center justify-center px-4 transition-opacity">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative">
+            <button onclick="closeConfig()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full p-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            
+            <h3 class="font-black text-xl text-slate-800 mb-1">Raio de Busca</h3>
+            <p class="text-sm text-slate-500 font-medium mb-6 leading-tight">Mostrar apenas postos que estejam dentro da distância de:</p>
+            
+            <div class="flex justify-center items-end mb-2">
+                <span id="dist-label" class="font-black text-[#235937] tracking-tight" style="font-size: 24px;">Sem Limite</span>
+                <span id="dist-suffix" class="font-bold text-slate-400 ml-1 mb-1" style="display: none;">km</span>
+            </div>
+            
+            <div class="px-2 mt-4">
+                <!-- Distância inicial configurada para "200" que representa o "Sem limite" -->
+                <input type="range" id="dist-slider" min="1" max="200" value="200" class="w-full" oninput="updateDistLabel(this.value)">
+                <div class="flex justify-between text-xs text-slate-400 font-bold mt-2 px-1">
+                    <span>1 km</span>
+                    <span>Sem limite</span>
+                </div>
+            </div>
+            
+            <button onclick="saveConfig()" class="mt-8 w-full bg-[#235937] hover:bg-[#1a4329] text-white py-3.5 rounded-xl text-[15px] font-bold shadow-lg shadow-[#235937]/30 transition-all">
+                Aplicar Distância
+            </button>
+        </div>
+    </div>
+
+    <!-- MENU FLUTUANTE GLOBAL (Ação dos 3 Pontinhos) -->
+    <div id="action-menu-backdrop" class="fixed inset-0 z-[1000] hidden" onclick="closeActionMenu()" style="touch-action: none;"></div>
+    <div id="action-menu" class="fixed z-[1001] hidden bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] border border-slate-100 py-1.5 w-52 transition-all opacity-0 scale-95 origin-top-right">
+        <button onclick="setStatusGlobal('working')" class="w-full text-left px-5 py-3 text-[14px] text-emerald-600 hover:bg-slate-50 font-bold flex items-center gap-3">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+            Funciona
+        </button>
+        <button onclick="setStatusGlobal('not_working')" class="w-full text-left px-5 py-3 text-[14px] text-red-500 hover:bg-slate-50 font-bold flex items-center gap-3">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+            Não Funciona
+        </button>
+        <div class="h-px bg-slate-100 my-0.5 mx-2"></div>
+        <button onclick="setStatusGlobal('default')" class="w-full text-left px-5 py-3 text-[14px] text-slate-500 hover:bg-slate-50 font-bold flex items-center gap-3">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Restaurar Padrão
+        </button>
     </div>
 
     <!-- TELA DE CARREGAMENTO -->
@@ -136,33 +219,295 @@
     </div>
 
     <script>
-        let isSheetOpen = true;
-        const sheet = document.getElementById('bottom-sheet');
 
-        function toggleSheet() {
-            if (window.innerWidth >= 1024) return; 
+        //Keys
+        const SUPABASE_URL = 'https://bkuzobqmhnzpnnvirhfh.supabase.co'; 
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrdXpvYnFtaG56cG5udmlyaGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNDUwMDUsImV4cCI6MjA4ODcyMTAwNX0.E1wpov8ZFoTLd8lM0TMlt9JhUqujM1uZzzyQlIL_KRQ
+';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Variáveis de Estado
+        let isSheetOpen = true;
+        let activeFilters = new Set(['all']); 
+        let maxDistance = Infinity; // Distância padrão sem limite inicial
+        let activeStationId = null; // Para o menu global
+
+        const sheet = document.getElementById('bottom-sheet');
+        const dragHeader = document.getElementById('drag-header');
+
+        // =====================================================================
+        // LÓGICA DE GESTOS (SWIPE) PARA ABRIR/FECHAR A LISTA
+        // =====================================================================
+        let startY = 0;
+        let currentY = 0;
+        let isDragging = false;
+        let isClick = true; 
+
+        dragHeader.addEventListener('touchstart', (e) => {
+            if (window.innerWidth >= 1024) return;
+            if (e.target.tagName === 'INPUT' || e.target.closest('button')) return;
             
-            if (isSheetOpen) {
+            startY = e.touches[0].clientY;
+            currentY = startY;
+            isDragging = true;
+            isClick = true;
+            sheet.style.transition = 'none';
+        }, {passive: true});
+
+        dragHeader.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            currentY = e.touches[0].clientY;
+            const diffY = currentY - startY;
+
+            if (Math.abs(diffY) > 10) isClick = false;
+
+            if (isSheetOpen && diffY > 0) {
+                sheet.style.transform = `translateY(${diffY}px)`;
+            } else if (!isSheetOpen && diffY < 0) {
+                sheet.style.transform = `translateY(calc(100% - 40px + ${diffY}px))`;
+            }
+        }, {passive: true});
+
+        dragHeader.addEventListener('touchend', (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            sheet.style.transition = ''; 
+            
+            if (isClick) {
+                toggleSheetJS();
+                return;
+            }
+
+            const diffY = currentY - startY;
+
+            if (isSheetOpen && diffY > 50) { 
+                isSheetOpen = false;
+                document.body.classList.add('sheet-collapsed');
+                sheet.style.transform = '';
+            } else if (!isSheetOpen && diffY < -50) { 
+                isSheetOpen = true;
+                document.body.classList.remove('sheet-collapsed');
+                sheet.style.transform = '';
+            } else {
+                toggleSheetJS(isSheetOpen); 
+            }
+        });
+
+        function toggleSheetJS(forceState) {
+            isSheetOpen = forceState !== undefined ? forceState : !isSheetOpen;
+            if (!isSheetOpen) {
                 sheet.style.transform = `translateY(calc(100% - 40px))`;
                 document.body.classList.add('sheet-collapsed');
             } else {
                 sheet.style.transform = `translateY(0)`;
                 document.body.classList.remove('sheet-collapsed');
             }
-            isSheetOpen = !isSheetOpen;
+        }
+        
+        function toggleSheet() {
+            toggleSheetJS();
         }
 
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.station-menu').forEach(el => el.classList.add('hidden'));
+        // =====================================================================
+        // AUTOCOMPLETE INTELIGENTE
+        // =====================================================================
+        function handleSearch(val) {
+            const box = document.getElementById('suggestions-box');
+            
+            // Se for menor que 2 letras, esconde e aplica filtro normal
+            if (val.length < 2) {
+                box.classList.add('hidden');
+                renderAll(false);
+                return;
+            }
+            
+            const valLower = val.toLowerCase();
+            const suggestionsSet = new Set();
+            
+            // Procura por cidades ou por nomes dos postos
+            rawData.forEach(s => {
+                if (s.cidade && s.cidade.toLowerCase().includes(valLower)) {
+                    suggestionsSet.add(s.cidade);
+                }
+                if (s.fantasia && s.fantasia.toLowerCase().includes(valLower)) {
+                    suggestionsSet.add(s.fantasia);
+                }
+            });
+
+            const suggestions = Array.from(suggestionsSet).slice(0, 5);
+            
+            if (suggestions.length > 0) {
+                box.innerHTML = suggestions.map(text => {
+                    // Escape aspas simples para não quebrar o HTML na injeção
+                    const safeText = text.replace(/'/g, "\\'");
+                    return `<li class="px-4 py-3 hover:bg-slate-50 active:bg-slate-100 cursor-pointer text-sm font-medium text-slate-700 border-b border-slate-50 last:border-0 flex items-center gap-2" onclick="selectSuggestion(event, '${safeText}')">
+                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
+                        ${text}
+                    </li>`;
+                }).join('');
+                box.classList.remove('hidden');
+            } else {
+                box.classList.add('hidden');
+            }
+            
+            renderAll(false);
+        }
+
+        function selectSuggestion(e, text) {
+            if (e) e.preventDefault();
+            const input = document.getElementById('city-search');
+            input.value = text;
+            document.getElementById('suggestions-box').classList.add('hidden');
+            renderAll(true); // Se clicou na cidade ou no posto sugerido, foca o mapa para lá
+        }
+
+        // Fecha a caixa de sugestões e menus flutuantes ao clicar fora
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.station-menu') && !e.target.closest('.dots-btn')) {
+                document.querySelectorAll('.station-menu').forEach(el => el.classList.add('hidden'));
+            }
+            if (!e.target.closest('#city-search') && !e.target.closest('#suggestions-box')) {
+                document.getElementById('suggestions-box').classList.add('hidden');
+            }
         });
 
         // =====================================================================
-        // 📋 COLE SEUS DADOS AQUI (ENTRE AS CRASES ` `)
-        // Você pode colar direto do Excel! O script limpa tudo automaticamente.
-        // Ordem recomendada no Excel: Nome | Endereço | Cidade | Lat | Lng
+        // FILTROS MÚLTIPLOS E CONFIGURAÇÕES DE DISTÂNCIA
+        // =====================================================================
+        function toggleFilter(type) {
+            if (type === 'all') {
+                activeFilters.clear();
+                activeFilters.add('all');
+            } else {
+                activeFilters.delete('all');
+                if (activeFilters.has(type)) {
+                    activeFilters.delete(type);
+                } else {
+                    activeFilters.add(type);
+                }
+                if (activeFilters.size === 0) activeFilters.add('all');
+            }
+            
+            // Atualiza botões
+            ['all', 'working', 'not_working', 'default'].forEach(t => {
+                const btn = document.getElementById('filter-' + t);
+                if (activeFilters.has(t)) {
+                    btn.className = "filter-btn flex-shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors bg-[#235937] text-white shadow-sm";
+                } else {
+                    btn.className = "filter-btn flex-shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200";
+                }
+            });
+            
+            renderAll(false); 
+        }
+
+        function openConfig() {
+            document.getElementById('config-modal').classList.remove('hidden');
+            document.getElementById('config-modal').classList.add('flex');
+        }
+        function closeConfig() {
+            document.getElementById('config-modal').classList.add('hidden');
+            document.getElementById('config-modal').classList.remove('flex');
+        }
+        function updateDistLabel(val) {
+            const label = document.getElementById('dist-label');
+            const suffix = document.getElementById('dist-suffix');
+            if (val == 200) {
+                label.innerText = 'Sem Limite';
+                label.style.fontSize = '24px';
+                suffix.style.display = 'none';
+            } else {
+                label.innerText = val;
+                label.style.fontSize = '36px';
+                suffix.style.display = 'inline';
+            }
+        }
+        function saveConfig() {
+            let val = document.getElementById('dist-slider').value;
+            maxDistance = val == 200 ? Infinity : parseInt(val);
+            closeConfig();
+            renderAll(true); 
+        }
+
+        // =====================================================================
+        // MENU FLUTUANTE DE STATUS (3 PONTINHOS)
+        // =====================================================================
+        function openActionMenu(e, id) {
+            e.stopPropagation();
+            activeStationId = id;
+            
+            const menu = document.getElementById('action-menu');
+            const backdrop = document.getElementById('action-menu-backdrop');
+            
+            menu.classList.remove('hidden');
+            backdrop.classList.remove('hidden');
+            
+            requestAnimationFrame(() => {
+                menu.classList.remove('opacity-0', 'scale-95');
+                menu.classList.add('opacity-100', 'scale-100');
+            });
+
+            const rect = e.target.closest('button').getBoundingClientRect();
+            
+            let top = rect.bottom + 8;
+            let left = rect.right - 208;
+            
+            if (top + 160 > window.innerHeight) {
+                top = rect.top - 150; 
+                menu.style.transformOrigin = 'bottom right';
+            } else {
+                menu.style.transformOrigin = 'top right';
+            }
+            
+            menu.style.top = top + 'px';
+            menu.style.left = left + 'px';
+        }
+
+        function closeActionMenu() {
+            const menu = document.getElementById('action-menu');
+            const backdrop = document.getElementById('action-menu-backdrop');
+            
+            menu.classList.remove('opacity-100', 'scale-100');
+            menu.classList.add('opacity-0', 'scale-95');
+            
+            setTimeout(() => {
+                menu.classList.add('hidden');
+                backdrop.classList.add('hidden');
+            }, 150); 
+        }
+
+async function setStatusGlobal(newStatus) {
+    if (activeStationId) {
+        // O comando .upsert avisa o Supabase: 
+        // "Se esse ID de posto não existir, crie. Se já existir, só mude o status."
+        const { error } = await supabase
+            .from('status_postos')
+            .upsert({ 
+                id_posto: activeStationId, 
+                status: newStatus,
+                updated_at: new_date().toISOString() 
+            });
+
+        if (!error) {
+            // Isso aqui atualiza o visual do seu mapa na hora para você ver a mudança
+            const raw = rawData.find(s => s.id === activeStationId);
+            const coord = stationsWithCoords.find(s => s.id === activeStationId);
+            if (raw && coord) {
+                raw.status = newStatus;
+                coord.status = newStatus;
+                renderAll(false);
+            }
+        } else {
+            console.error("Erro ao salvar no Supabase:", error);
+        }
+    }
+    closeActionMenu();
+}
+
+        // =====================================================================
+        // 📋 DADOS E LIMPEZA (COLE AQUI SEU TEXTO DO EXCEL)
         // =====================================================================
         const listaSuja = `
-Nome	Endereço	Latitude	Longitude
 AUTO POSTO ABATIA	AVENIDA JOAO CARVALHO DE MELLO, 205 - CENTRO, ABATIA - PR	-23.3017468	-50.31220769999990
 PALMEIRA 2 COMERCIO DE COMBUSTIVEIS	RODOVIA SC 114, 997 - CENTRO, ABATIA - PR	-23.3037059	-50.31175229999990
 AUTO POSTO MOVICAR	AVENIDA MARECHAL MASCARENHAS DE MORAIS, 64 - CENTRO, ADRIANOPOLIS - PR	-24.6659349	-48.9900661
@@ -1166,92 +1511,97 @@ POSTO ECONOMIC	RUA XV DE NOVEMBRO, 431 - CENTRO, RIO NEGRO - PR	-26.1049557	-49.
 AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGRO - PR	-26.0908181	-49.7870956
 `;
 
-        // --- FUNÇÃO INTELIGENTE QUE LIMPA OS DADOS SUJOS ---
+        // Limpa visualmente as coordenadas se elas vazarem pro campo de Endereço/Cidade
+        function limparTextoVisual(text) {
+            if (!text) return "";
+            // Corta com segurança qualquer coisa colada a partir do padrão " - PR-" ou " - SC-"
+            let limpo = String(text).replace(/(.*? - (?:PR|SC|SP|RS|RJ|MG|MS|MT|GO))-?.*/i, '$1');
+            
+            // Segunda camada de segurança: apaga qualquer número negativo grudado e cheio de pontos/vírgulas
+            limpo = limpo.replace(/-?\d{2}[.,]\d{4,}.*/g, '');
+            
+            // Remove pontuações que sobrarem sozinhas no fim da frase
+            return limpo.replace(/[-\s,]+$/, '').trim();
+        }
+
         function converterListaSuja(texto) {
             let postos = [];
             let idCounter = 1;
             if (!texto || !texto.trim()) return postos;
 
-            // Se o texto tiver Tabulação (Copiou de Planilha/Excel)
             if (texto.includes('\t')) {
                 const linhas = texto.trim().split('\n');
                 linhas.forEach(linha => {
                     const col = linha.split('\t').map(c => c.trim());
-                    // Precisa de pelo menos Nome, Lat e Lng para funcionar bem
                     if (col.length >= 3) { 
-                        // Pega os 2 últimos itens da linha assumindo que são Lat e Lng e troca vírgula por ponto
                         let lat = parseFloat(col[col.length - 2].replace(',', '.'));
                         let lng = parseFloat(col[col.length - 1].replace(',', '.'));
                         
                         if (!isNaN(lat) && !isNaN(lng)) {
                             postos.push({
                                 id: idCounter++,
-                                fantasia: col[0] || "Posto Credenciado",
-                                endereco: col[1] || "Endereço não informado",
-                                cidade: col.length > 3 ? col[2] : "",
+                                fantasia: limparTextoVisual(col[0] || "Posto"),
+                                endereco: limparTextoVisual(col[1] || ""),
+                                cidade: limparTextoVisual(col.length > 3 ? col[2] : ""),
                                 lat: lat,
                                 lng: lng,
-                                isValidated: false
+                                status: 'default'
                             });
                         }
                     }
                 });
-            } 
-            // Se for o formato "Grudado" sem espaços (que gerou o erro de formatação antes)
-            else {
-                // Regex que busca " - ESTADO" + latitude + longitude
+            } else {
                 const regex = /(.*? - [A-Z]{2})\s*(-?\d{2}\.\d+)\s*(-?\d{2}\.\d+)/g;
                 let match;
                 while ((match = regex.exec(texto)) !== null) {
                     let endCompleto = match[1].replace('EndereçoLatitudeLongitude', '').trim();
+                    
+                    // Extrai inteligentemente a cidade se ela estiver logo antes da Sigla do Estado
+                    let cidadeMatches = endCompleto.match(/,\s*([^,]+?)\s*-\s*[A-Z]{2}$/i);
+                    let parsedCidade = cidadeMatches ? cidadeMatches[1].trim() : "";
+                    
                     postos.push({
                         id: idCounter++,
-                        fantasia: "Posto da Rede", 
-                        endereco: endCompleto,
-                        cidade: "", // A cidade já está embutida na string do endereço
+                        fantasia: "Posto", 
+                        endereco: limparTextoVisual(endCompleto),
+                        cidade: parsedCidade, 
                         lat: parseFloat(match[2]),
                         lng: parseFloat(match[3]),
-                        isValidated: false
+                        status: 'default'
                     });
                 }
             }
             return postos;
         }
 
-        // Executa o limpador e armazena os dados processados
         const rawData = converterListaSuja(listaSuja);
-
         let map;
         let userLocation = null;
         let markers = [];
         let stationsWithCoords = [];
 
+        // Ícones SVG
         const gasIconSVG = `<svg class="pin-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>`;
         const checkIconSVG = `<svg class="pin-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>`;
-        const dotsIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>`;
+        const crossIconSVG = `<svg class="pin-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>`;
+        const dotsIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>`;
 
         function initMap() {
-            // Câmera focada para abranger todo o Estado do Paraná inicialmente
             map = L.map('map', { zoomControl: false }).setView([-24.5, -51.0], 6);
-            
             L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                attribution: '© OpenStreetMap © CARTO',
-                maxZoom: 19
+                attribution: '© OpenStreetMap', maxZoom: 19
             }).addTo(map);
-            
             L.control.zoom({ position: 'topleft' }).addTo(map);
         }
 
-        async function getUserLocation() {
+        function getUserLocation() {
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(position => {
                     userLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
                     processStations(); 
                 }, () => {
-                    alert("Ative a localização do seu dispositivo para pesquisar com base na sua distância.");
+                    alert("Ative a localização do seu dispositivo.");
                 });
-            } else {
-                alert("Geolocalização não suportada no seu navegador.");
             }
         }
 
@@ -1260,7 +1610,7 @@ AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGR
                 const dist = userLocation ? calculateDistance(userLocation.lat, userLocation.lng, s.lat, s.lng) : 0;
                 return { ...s, distance: dist };
             });
-            renderAll();
+            renderAll(true);
         }
 
         function formatDistance(dist) {
@@ -1277,57 +1627,44 @@ AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGR
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
-        function filterStations() {
-            renderAll();
-        }
-
-        function toggleStationMenu(event, id) {
-            event.stopPropagation();
-            const menu = document.getElementById(`menu-${id}`);
-            const isHidden = menu.classList.contains('hidden');
-            document.querySelectorAll('.station-menu').forEach(el => el.classList.add('hidden'));
-            if (isHidden) menu.classList.remove('hidden');
-        }
-
-        function validateStation(event, id) {
-            event.stopPropagation();
-            const raw = rawData.find(s => s.id === id);
-            const coord = stationsWithCoords.find(s => s.id === id);
-            if (raw && coord) {
-                raw.isValidated = true;
-                coord.isValidated = true;
-                renderAll(); 
-            }
-        }
-
-        function invalidateStation(event, id) {
-            event.stopPropagation();
-            const raw = rawData.find(s => s.id === id);
-            const coord = stationsWithCoords.find(s => s.id === id);
-            if (raw && coord) {
-                raw.isValidated = false;
-                coord.isValidated = false;
-                renderAll();
-            }
-        }
-
-        function renderAll() {
+        // =====================================================================
+        // RENDERIZAÇÃO E ORDENAÇÃO
+        // =====================================================================
+        function renderAll(shouldFitBounds = false) {
             const searchTerm = document.getElementById('city-search').value.toLowerCase();
-            let filtered = stationsWithCoords.filter(s => 
-                (s.endereco && s.endereco.toLowerCase().includes(searchTerm)) || 
-                (s.fantasia && s.fantasia.toLowerCase().includes(searchTerm)) || 
-                (s.cidade && s.cidade.toLowerCase().includes(searchTerm))
-            );
+            
+            let filtered = stationsWithCoords.filter(s => {
+                // Filtro de Texto
+                let matchText = (s.endereco && s.endereco.toLowerCase().includes(searchTerm)) || 
+                                (s.fantasia && s.fantasia.toLowerCase().includes(searchTerm)) || 
+                                (s.cidade && s.cidade.toLowerCase().includes(searchTerm));
+                                
+                // Filtro de Status (Botões)
+                let matchFilter = activeFilters.has('all') || activeFilters.has(s.status);
+                
+                // Filtro de Distância (Raio Configurado) - Se distance for 0 ignora (não tem GPS)
+                let matchDistance = s.distance === 0 || s.distance <= maxDistance;
 
+                return matchText && matchFilter && matchDistance;
+            });
+
+            // Lógica Estrita de Ordenação:
+            // 1º Funciona | 2º Credenciado | 3º Não Funciona
+            // Dentro de cada grupo, ordena pela distância.
             filtered.sort((a, b) => {
-                if (a.isValidated !== b.isValidated) return a.isValidated ? -1 : 1;
+                const weight = { 'working': 1, 'default': 2, 'not_working': 3 };
+                
+                if (weight[a.status] !== weight[b.status]) {
+                    return weight[a.status] - weight[b.status];
+                }
+                // Se têm o mesmo status, desempata pela distância
                 return a.distance - b.distance;
             });
 
-            // Limita visualmente para não travar o celular com milhares de postos de uma vez
-            const topShow = filtered.slice(0, 30);
+            // Retornado ao limite de 50 (Garante estabilidade e fluidez do celular sem travar)
+            const topShow = filtered.slice(0, 50);
             renderList(topShow);
-            renderMarkers(topShow);
+            renderMarkers(topShow, shouldFitBounds);
             document.getElementById('counter').innerText = `${filtered.length} postos`;
         }
 
@@ -1336,60 +1673,54 @@ AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGR
             container.innerHTML = '';
 
             if (list.length === 0) {
-                container.innerHTML = `<div class="bg-white p-8 rounded-2xl text-center border-2 border-dashed border-slate-200 mt-4"><p class="text-sm font-medium text-slate-500">Nenhum posto encontrado. Cole seus dados na variável "listaSuja" no código fonte.</p></div>`;
+                container.innerHTML = `
+                <div class="bg-white p-8 rounded-2xl text-center border border-slate-100 mt-4 shadow-sm">
+                    <p class="text-sm font-medium text-slate-500">Nenhum posto encontrado no raio de ${maxDistance === Infinity ? 'qualquer distância' : maxDistance + ' km'}.</p>
+                </div>`;
                 return;
             }
 
             list.forEach(item => {
                 const card = document.createElement('div');
-                card.className = "station-card bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col cursor-pointer relative";
+                card.className = "station-card bg-white p-4 rounded-[1.25rem] shadow-sm border border-slate-100 flex flex-col relative";
                 
-                card.onclick = () => {
-                    if (window.innerWidth < 1024 && isSheetOpen) toggleSheet();
-                    map.flyTo([item.lat, item.lng], 16, { animate: true, duration: 1.5 });
-                };
-
-                const iconColor = item.isValidated ? 'bg-emerald-100 text-emerald-600' : 'bg-[#235937]/10 text-[#235937]';
-                const badgeHtml = item.isValidated ? 
-                    `<span class="bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-md uppercase flex items-center gap-1"><svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>Validado</span>` 
-                    : `<span class="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">Credenciado</span>`;
+                let badgeHtml = '';
+                let iconColor = '';
+                
+                if (item.status === 'working') {
+                    badgeHtml = `<span class="bg-emerald-500 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1 shadow-sm"><svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>Funciona</span>`;
+                    iconColor = 'bg-emerald-100 text-emerald-600';
+                } else if (item.status === 'not_working') {
+                    badgeHtml = `<span class="bg-red-500 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1 shadow-sm"><svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>Não Funciona</span>`;
+                    iconColor = 'bg-red-100 text-red-600 opacity-70';
+                } else {
+                    badgeHtml = `<span class="bg-slate-100 text-slate-500 text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">Credenciado</span>`;
+                    iconColor = 'bg-[#235937]/10 text-[#235937]';
+                }
 
                 card.innerHTML = `
-                    <div class="absolute top-2 right-2 z-10">
-                        <button onclick="toggleStationMenu(event, ${item.id})" class="text-slate-400 hover:text-[#235937] p-2 rounded-full hover:bg-slate-50 transition-colors">
+                    <div class="absolute top-2.5 right-2 z-10">
+                        <button onclick="openActionMenu(event, ${item.id})" class="text-slate-300 hover:text-[#235937] p-2 rounded-full hover:bg-slate-50 transition-colors">
                             ${dotsIconSVG}
                         </button>
-                        
-                        <div id="menu-${item.id}" class="station-menu hidden absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.15)] border border-slate-100 py-1.5 z-[100]">
-                            ${!item.isValidated ? 
-                                `<button onclick="validateStation(event, ${item.id})" class="w-full text-left px-4 py-2 text-[14px] text-[#235937] hover:bg-slate-50 font-bold flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                                    Validar Posto
-                                </button>` : 
-                                `<button onclick="invalidateStation(event, ${item.id})" class="w-full text-left px-4 py-2 text-[14px] text-red-600 hover:bg-red-50 font-bold flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
-                                    Remover Validação
-                                </button>`
-                            }
-                        </div>
                     </div>
 
-                    <div class="flex gap-3 items-center pr-10">
+                    <div class="flex gap-3 items-center pr-10 cursor-pointer" onclick="map.flyTo([${item.lat}, ${item.lng}], 16, { animate: true, duration: 1.5 }); if (window.innerWidth < 1024 && isSheetOpen) toggleSheet();">
                         <div class="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${iconColor}">
                             ${gasIconSVG}
                         </div>
                         <div class="flex-1 min-w-0">
-                            <h3 class="font-bold text-slate-800 text-[15px] truncate">${item.fantasia}</h3>
-                            <p class="text-[12px] text-slate-500 truncate mt-0.5">${item.endereco}</p>
+                            <h3 class="font-bold text-slate-800 text-[15px] truncate pr-2">${item.fantasia}</h3>
+                            <p class="text-[12px] text-slate-500 truncate mt-0.5 pr-2">${item.endereco}</p>
                         </div>
                     </div>
                     
-                    <div class="mt-3 flex items-center justify-between border-t border-slate-50 pt-3">
+                    <div class="mt-3 flex items-center justify-between border-t border-slate-50 pt-3 cursor-pointer" onclick="map.flyTo([${item.lat}, ${item.lng}], 16); if (window.innerWidth < 1024 && isSheetOpen) toggleSheet();">
                         <div class="flex items-center gap-2">
                             ${badgeHtml}
                             <span class="text-[11px] text-slate-400 font-medium uppercase truncate max-w-[100px]">${item.cidade}</span>
                         </div>
-                        <span class="text-[#235937] font-bold text-[13px] bg-[#235937]/10 px-2 py-1 rounded-lg whitespace-nowrap">
+                        <span class="text-[#235937] font-bold text-[13px] bg-[#235937]/10 px-2.5 py-1 rounded-lg whitespace-nowrap">
                             ${formatDistance(item.distance)}
                         </span>
                     </div>
@@ -1398,7 +1729,7 @@ AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGR
             });
         }
 
-        function renderMarkers(list) {
+        function renderMarkers(list, shouldFitBounds) {
             markers.forEach(m => map.removeLayer(m));
             markers = [];
 
@@ -1413,8 +1744,21 @@ AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGR
             }
 
             list.forEach(item => {
-                const iconClass = item.isValidated ? 'validated-pin' : 'standard-pin';
-                const svgContent = item.isValidated ? checkIconSVG : gasIconSVG;
+                let iconClass, svgContent, statusHtml;
+                
+                if (item.status === 'working') {
+                    iconClass = 'validated-pin';
+                    svgContent = checkIconSVG;
+                    statusHtml = '<div class="mt-2 text-[10px] font-bold text-emerald-600 bg-emerald-50 py-1 rounded-md uppercase text-center shadow-sm">✓ Funciona</div>';
+                } else if (item.status === 'not_working') {
+                    iconClass = 'not-working-pin';
+                    svgContent = crossIconSVG;
+                    statusHtml = '<div class="mt-2 text-[10px] font-bold text-red-600 bg-red-50 py-1 rounded-md uppercase text-center shadow-sm">✕ Não Funciona</div>';
+                } else {
+                    iconClass = 'standard-pin';
+                    svgContent = gasIconSVG;
+                    statusHtml = '';
+                }
                 
                 const customIcon = L.divIcon({
                     html: `<div class="custom-pin ${iconClass}">${svgContent}</div>`, className: '',
@@ -1422,32 +1766,47 @@ AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGR
                 });
 
                 const m = L.marker([item.lat, item.lng], { icon: customIcon }).addTo(map);
-                
+
                 m.bindPopup(`
-                    <div class="text-center min-w-[120px] pb-1">
-                        <strong class="block text-[#235937] text-[15px] mb-1 break-words">${item.fantasia}</strong>
-                        <span class="text-xs text-slate-500 break-words">${item.endereco}</span>
-                        ${item.isValidated ? '<div class="mt-2 text-[10px] font-bold text-emerald-600 bg-emerald-50 py-1 rounded-md uppercase">✓ Cartão Confirmado</div>' : ''}
+                    <div class="min-w-[140px] pb-1">
+                        <strong class="block text-[#235937] text-[15px] mb-1 break-words leading-tight">${item.fantasia}</strong>
+                        <span class="block text-[11px] text-slate-500 break-words leading-snug">${item.endereco}</span>
+                        ${statusHtml}
                     </div>
                 `, { closeButton: false, offset: [0, -10] });
                 
                 markers.push(m);
             });
 
-            if (markers.length > 0) {
+            // Ajuste Inteligente de Câmera: Só faz se for pedido expressamente (quando usa o GPS ou o Filtro de Raio)
+            if (shouldFitBounds && markers.length > 0) {
                 const group = new L.featureGroup(markers);
                 const bounds = group.getBounds();
                 if (bounds.isValid()) {
-                    let padding = window.innerWidth < 1024 ? [0, window.innerHeight * 0.65] : [420, 0];
+                    let padding = window.innerWidth < 1024 ? [0, window.innerHeight * 0.68] : [420, 0];
                     map.fitBounds(bounds.pad(0.1), { paddingBottomRight: padding, maxZoom: 15, duration: 1 });
                 }
             }
         }
 
-        window.onload = () => {
-            initMap();
-            processStations(); // Carrega imediatamente a partir dos dados processados do texto
-        };
+window.onload = async () => {
+    initMap();
+    processStations(); // Carrega os 1300 postos da sua lista de texto
+
+    // Agora busca no Supabase se algum desses 1300 já tem status salvo
+    const { data, error } = await supabase.from('status_postos').select('*');
+    
+    if (data) {
+        data.forEach(item => {
+            // Procura o posto na sua lista local e aplica o status vindo do banco
+            const posto = rawData.find(p => p.id === item.id_posto);
+            if (posto) {
+                posto.status = item.status;
+            }
+        });
+        renderAll(false); // Recarrega o visual com os status oficiais
+    }
+};
     </script>
 </body>
 </html>
