@@ -42,108 +42,7 @@
 </head>
 <body>
 
-    <div id="map"></div>
-
-    <button onclick="getUserLocation()" class="absolute top-5 right-5 z-[400] bg-[#235937] text-white p-3.5 rounded-2xl shadow-[0_4px_20px_rgba(35,89,55,0.4)] border border-[#1a4329] flex items-center justify-center hover:bg-[#1a4329] active:scale-95 transition-all">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-    </button>
-
-    <div id="bottom-sheet">
-        <div id="drag-header" class="flex-shrink-0 touch-pan-y">
-            <div class="sheet-handle"><div class="handle-bar"></div></div>
-            <div class="px-5">
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 mb-3 lg:mt-6 p-3 relative">
-                    <div class="flex gap-2">
-                        <div class="relative flex-1">
-                            <input type="text" id="city-search" oninput="handleSearch(this.value)" placeholder="Buscar posto ou cidade..." autocomplete="off"
-                                   class="w-full bg-slate-50 border border-slate-100 rounded-xl pl-10 pr-4 py-3 text-[14px] font-medium placeholder-slate-400 focus:ring-2 focus:ring-[#235937]/20 outline-none transition-all">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3.5 top-3.5 text-[#235937]/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                            <ul id="suggestions-box" class="absolute z-[600] w-full bg-white rounded-xl shadow-xl border border-slate-100 mt-2 hidden max-h-48 overflow-y-auto"></ul>
-                        </div>
-                        <button onclick="openConfig()" class="bg-slate-50 border border-slate-100 hover:bg-slate-100 text-slate-500 p-3 rounded-xl transition-colors flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="flex gap-2 mt-3 overflow-x-auto scrollbar-hide pb-1 items-center">
-                        <button onclick="toggleFilter('all')" id="filter-all" class="filter-btn flex-shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors bg-[#235937] text-white shadow-sm">Todos</button>
-                        <button onclick="toggleFilter('working')" id="filter-working" class="filter-btn flex-shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200">Funciona</button>
-                        <button onclick="toggleFilter('default')" id="filter-default" class="filter-btn flex-shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200">Credenciado</button>
-                        <button onclick="toggleFilter('not_working')" id="filter-not_working" class="filter-btn flex-shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200">Não Funciona</button>
-                    </div>
-                </div>
-                <div class="flex items-center justify-between mb-3 px-1">
-                    <h2 class="font-bold text-slate-800 text-lg">Postos Próximos</h2>
-                    <span id="counter" class="text-xs font-bold bg-[#235937]/10 text-[#235937] px-3 py-1 rounded-full">0 locais</span>
-                </div>
-            </div>
-        </div>
-        <div id="station-list" class="custom-scroll flex flex-col gap-3 relative pb-20 px-5"></div>
-    </div>
-
-    <div id="config-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[2000] hidden flex-col items-center justify-center px-4 transition-opacity">
-        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative">
-            <button onclick="closeConfig()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full p-1.5">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-            <h3 class="font-black text-xl text-slate-800 mb-1">Raio de Busca</h3>
-            <p class="text-sm text-slate-500 font-medium mb-6 leading-tight">Mostrar apenas postos dentro de:</p>
-            <div class="flex justify-center items-end mb-2">
-                <span id="dist-label" class="font-black text-[#235937] tracking-tight" style="font-size: 24px;">Sem Limite</span>
-                <span id="dist-suffix" class="font-bold text-slate-400 ml-1 mb-1" style="display: none;">km</span>
-            </div>
-            <div class="px-2 mt-4">
-                <input type="range" id="dist-slider" min="1" max="200" value="200" class="w-full" oninput="updateDistLabel(this.value)">
-                <div class="flex justify-between text-xs text-slate-400 font-bold mt-2 px-1"><span>1 km</span><span>Sem limite</span></div>
-            </div>
-            <button onclick="saveConfig()" class="mt-8 w-full bg-[#235937] hover:bg-[#1a4329] text-white py-3.5 rounded-xl text-[15px] font-bold shadow-lg shadow-[#235937]/30 transition-all">Aplicar Distância</button>
-        </div>
-    </div>
-
-    <div id="action-menu-backdrop" class="fixed inset-0 z-[1000] hidden" onclick="closeActionMenu()" style="touch-action: none;"></div>
-    <div id="action-menu" class="fixed z-[1001] hidden bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] border border-slate-100 py-1.5 w-52 transition-all opacity-0 scale-95 origin-top-right">
-        <button onclick="setStatusGlobal('working')" class="w-full text-left px-5 py-3 text-[14px] text-emerald-600 hover:bg-slate-50 font-bold flex items-center gap-3">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>Funciona
-        </button>
-        <button onclick="setStatusGlobal('not_working')" class="w-full text-left px-5 py-3 text-[14px] text-red-500 hover:bg-slate-50 font-bold flex items-center gap-3">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>Não Funciona
-        </button>
-        <div class="h-px bg-slate-100 my-0.5 mx-2"></div>
-        <button onclick="setStatusGlobal('default')" class="w-full text-left px-5 py-3 text-[14px] text-slate-500 hover:bg-slate-50 font-bold flex items-center gap-3">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Restaurar Padrão
-        </button>
-    </div>
-
-    <div id="loader" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] hidden flex flex-col items-center justify-center text-white">
-        <div class="w-14 h-14 border-4 border-[#235937]/30 border-t-[#235937] rounded-full animate-spin mb-4 shadow-lg"></div>
-        <p class="font-bold text-lg mb-2">Buscando postos...</p>
-    </div>
-
-    <script>
-        // 1. CONFIGURAÇÃO SUPABASE
-        const SUPABASE_URL = 'https://bkuzobqmhnzpnnvirhfh.supabase.co'; 
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrdXpvYnFtaG56cG5udmlyaGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNDUwMDUsImV4cCI6MjA4ODcyMTAwNX0.E1wpov8ZFoTLd8lM0TMlt9JhUqujM1uZzzyQlIL_KRQ';
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-        // 2. VARIÁVEIS DE ESTADO
-        let isSheetOpen = true;
-        let activeFilters = new Set(['all']); 
-        let maxDistance = Infinity;
-        let activeStationId = null; 
-        let map, userLocation = null, markers = [], stationsWithCoords = [];
-
-        const sheet = document.getElementById('bottom-sheet');
-        const dragHeader = document.getElementById('drag-header');
-
-        // 3. LISTA DE POSTOS (Cole aqui seus 1300 postos)
-        const listaSuja = `
+    <textarea id="dados-brutos" style="display: none;">
 AUTO POSTO ABATIA	AVENIDA JOAO CARVALHO DE MELLO, 205 - CENTRO, ABATIA - PR	-23.3017468	-50.31220769999990
 PALMEIRA 2 COMERCIO DE COMBUSTIVEIS	RODOVIA SC 114, 997 - CENTRO, ABATIA - PR	-23.3037059	-50.31175229999990
 AUTO POSTO MOVICAR	AVENIDA MARECHAL MASCARENHAS DE MORAIS, 64 - CENTRO, ADRIANOPOLIS - PR	-24.6659349	-48.9900661
@@ -1145,8 +1044,106 @@ POSTO PETRUS RIO BRANCO	RUA RUA SETE DE ABRIL, 1660 - VILA VELHA, RIO BRANCO DO 
 POSTO SAN MARINO	AVENIDA GENERAL PLINIO TOURINHO, 3319 - CENTRO, RIO NEGRO - PR	-26.0874668	-49.7812582
 POSTO ECONOMIC	RUA XV DE NOVEMBRO, 431 - CENTRO, RIO NEGRO - PR	-26.1049557	-49.7971599
 AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGRO - PR	-26.0908181	-49.7870956
-`;
-        `;
+
+    </textarea>
+
+    <div id="map"></div>
+
+    <button onclick="getUserLocation()" class="absolute top-5 right-5 z-[400] bg-[#235937] text-white p-3.5 rounded-2xl shadow-[0_4px_20px_rgba(35,89,55,0.4)] border border-[#1a4329] flex items-center justify-center hover:bg-[#1a4329] active:scale-95 transition-all">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+    </button>
+
+    <div id="bottom-sheet">
+        <div id="drag-header" class="flex-shrink-0 touch-pan-y">
+            <div class="sheet-handle"><div class="handle-bar"></div></div>
+            <div class="px-5">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 mb-3 lg:mt-6 p-3 relative">
+                    <div class="flex gap-2">
+                        <div class="relative flex-1">
+                            <input type="text" id="city-search" oninput="handleSearch(this.value)" placeholder="Buscar posto ou cidade..." autocomplete="off"
+                                   class="w-full bg-slate-50 border border-slate-100 rounded-xl pl-10 pr-4 py-3 text-[14px] font-medium placeholder-slate-400 focus:ring-2 focus:ring-[#235937]/20 outline-none transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3.5 top-3.5 text-[#235937]/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <ul id="suggestions-box" class="absolute z-[600] w-full bg-white rounded-xl shadow-xl border border-slate-100 mt-2 hidden max-h-48 overflow-y-auto"></ul>
+                        </div>
+                        <button onclick="openConfig()" class="bg-slate-50 border border-slate-100 hover:bg-slate-100 text-slate-500 p-3 rounded-xl transition-colors flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="flex gap-2 mt-3 overflow-x-auto scrollbar-hide pb-1 items-center">
+                        <button onclick="toggleFilter('all')" id="filter-all" class="filter-btn flex-shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors bg-[#235937] text-white shadow-sm">Todos</button>
+                        <button onclick="toggleFilter('working')" id="filter-working" class="filter-btn flex-shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200">Funciona</button>
+                        <button onclick="toggleFilter('default')" id="filter-default" class="filter-btn flex-shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200">Credenciado</button>
+                        <button onclick="toggleFilter('not_working')" id="filter-not_working" class="filter-btn flex-shrink-0 px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200">Não Funciona</button>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between mb-3 px-1">
+                    <h2 class="font-bold text-slate-800 text-lg">Postos Próximos</h2>
+                    <span id="counter" class="text-xs font-bold bg-[#235937]/10 text-[#235937] px-3 py-1 rounded-full">0 locais</span>
+                </div>
+            </div>
+        </div>
+        <div id="station-list" class="custom-scroll flex flex-col gap-3 relative pb-20 px-5"></div>
+    </div>
+
+    <div id="config-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[2000] hidden flex-col items-center justify-center px-4 transition-opacity">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative">
+            <button onclick="closeConfig()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full p-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h3 class="font-black text-xl text-slate-800 mb-1">Raio de Busca</h3>
+            <p class="text-sm text-slate-500 font-medium mb-6 leading-tight">Mostrar apenas postos dentro de:</p>
+            <div class="flex justify-center items-end mb-2">
+                <span id="dist-label" class="font-black text-[#235937] tracking-tight" style="font-size: 24px;">Sem Limite</span>
+                <span id="dist-suffix" class="font-bold text-slate-400 ml-1 mb-1" style="display: none;">km</span>
+            </div>
+            <div class="px-2 mt-4">
+                <input type="range" id="dist-slider" min="1" max="200" value="200" class="w-full" oninput="updateDistLabel(this.value)">
+                <div class="flex justify-between text-xs text-slate-400 font-bold mt-2 px-1"><span>1 km</span><span>Sem limite</span></div>
+            </div>
+            <button onclick="saveConfig()" class="mt-8 w-full bg-[#235937] hover:bg-[#1a4329] text-white py-3.5 rounded-xl text-[15px] font-bold shadow-lg shadow-[#235937]/30 transition-all">Aplicar Distância</button>
+        </div>
+    </div>
+
+    <div id="action-menu-backdrop" class="fixed inset-0 z-[1000] hidden" onclick="closeActionMenu()" style="touch-action: none;"></div>
+    <div id="action-menu" class="fixed z-[1001] hidden bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] border border-slate-100 py-1.5 w-52 transition-all opacity-0 scale-95 origin-top-right">
+        <button onclick="setStatusGlobal('working')" class="w-full text-left px-5 py-3 text-[14px] text-emerald-600 hover:bg-slate-50 font-bold flex items-center gap-3">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>Funciona
+        </button>
+        <button onclick="setStatusGlobal('not_working')" class="w-full text-left px-5 py-3 text-[14px] text-red-500 hover:bg-slate-50 font-bold flex items-center gap-3">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>Não Funciona
+        </button>
+        <div class="h-px bg-slate-100 my-0.5 mx-2"></div>
+        <button onclick="setStatusGlobal('default')" class="w-full text-left px-5 py-3 text-[14px] text-slate-500 hover:bg-slate-50 font-bold flex items-center gap-3">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Restaurar Padrão
+        </button>
+    </div>
+
+    <script>
+        // 1. CONFIGURAÇÃO SUPABASE
+        const SUPABASE_URL = 'https://bkuzobqmhnzpnnvirhfh.supabase.co'; 
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrdXpvYnFtaG56cG5udmlyaGZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNDUwMDUsImV4cCI6MjA4ODcyMTAwNX0.E1wpov8ZFoTLd8lM0TMlt9JhUqujM1uZzzyQlIL_KRQ';
+        let supabaseDB;
+
+        // 2. VARIÁVEIS DE ESTADO
+        let isSheetOpen = true;
+        let activeFilters = new Set(['all']); 
+        let maxDistance = Infinity;
+        let activeStationId = null; 
+        let map, userLocation = null, markers = [], stationsWithCoords = [];
+
+        const sheet = document.getElementById('bottom-sheet');
+        const dragHeader = document.getElementById('drag-header');
+
+        // 3. CAPTURANDO A LISTA DO HTML (Protegido contra quebra de string)
+        const listaSuja = document.getElementById('dados-brutos').value;
 
         // --- FUNÇÕES DE LIMPEZA E ID ---
         function limparTextoVisual(text) {
@@ -1158,10 +1155,10 @@ AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGR
 
         function converterListaSuja(texto) {
             let postos = [];
-            if (!texto.trim()) return postos;
+            if (!texto || !texto.trim()) return postos;
             const linhas = texto.trim().split('\n');
             linhas.forEach(linha => {
-                const col = linha.split('\t').map(c => c.trim());
+                const col = linha.split(/\t| {2,}/).map(c => c.trim());
                 if (col.length >= 3) {
                     const fantasia = col[0] || "Posto";
                     const endereco = col[1] || "";
@@ -1182,27 +1179,34 @@ AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGR
 
         // --- INTEGRAÇÃO SUPABASE ---
         async function setStatusGlobal(newStatus) {
-            if (activeStationId) {
-                const { error } = await supabaseClient
+            if (activeStationId && supabaseDB) {
+                const { error } = await supabaseDB
                     .from('status_postos')
                     .upsert({ id_posto: activeStationId, status: newStatus, updated_at: new Date().toISOString() });
                 if (!error) {
                     const raw = rawData.find(s => s.id === activeStationId);
                     if (raw) raw.status = newStatus;
-                    renderAll(false);
+                    processStations();
+                } else {
+                    console.error("Erro ao salvar:", error);
                 }
             }
             closeActionMenu();
         }
 
         async function baixarStatusDoBanco() {
-            const { data } = await supabaseClient.from('status_postos').select('*');
-            if (data) {
-                data.forEach(item => {
-                    const posto = rawData.find(p => p.id === item.id_posto);
-                    if (posto) posto.status = item.status;
-                });
-                processStations();
+            if (!supabaseDB) return;
+            try {
+                const { data, error } = await supabaseDB.from('status_postos').select('*');
+                if (data && !error) {
+                    data.forEach(item => {
+                        const posto = rawData.find(p => p.id === item.id_posto);
+                        if (posto) posto.status = item.status;
+                    });
+                    processStations();
+                }
+            } catch (e) {
+                console.error("Erro ao baixar dados do banco:", e);
             }
         }
 
@@ -1243,7 +1247,9 @@ AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGR
         }
 
         function renderAll(shouldFitBounds = false) {
-            const searchTerm = document.getElementById('city-search').value.toLowerCase();
+            const searchEl = document.getElementById('city-search');
+            const searchTerm = searchEl ? searchEl.value.toLowerCase() : "";
+            
             let filtered = stationsWithCoords.filter(s => {
                 let matchText = s.endereco.toLowerCase().includes(searchTerm) || s.fantasia.toLowerCase().includes(searchTerm) || s.cidade.toLowerCase().includes(searchTerm);
                 let matchFilter = activeFilters.has('all') || activeFilters.has(s.status);
@@ -1264,6 +1270,7 @@ AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGR
 
         function renderList(list) {
             const container = document.getElementById('station-list');
+            if (!container) return;
             container.innerHTML = list.length === 0 ? '<div class="bg-white p-8 rounded-2xl text-center">Nenhum posto encontrado.</div>' : '';
             list.forEach(item => {
                 const card = document.createElement('div');
@@ -1294,8 +1301,25 @@ AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGR
                 markers.push(uM);
             }
             list.forEach(item => {
-                let config = item.status === 'working' ? {class: 'validated-pin', svg: checkIconSVG} : (item.status === 'not_working' ? {class: 'not-working-pin', svg: crossIconSVG} : {class: 'standard-pin', svg: gasIconSVG});
-                const m = L.marker([item.lat, item.lng], { icon: L.divIcon({ html: `<div class="custom-pin ${config.class}">${config.svg}</div>`, className: '', iconSize: [36, 36], iconAnchor: [18, 18] }) }).addTo(map);
+                let pinStyle = 'standard-pin';
+                let pinSvg = gasIconSVG;
+                
+                if (item.status === 'working') {
+                    pinStyle = 'validated-pin';
+                    pinSvg = checkIconSVG;
+                } else if (item.status === 'not_working') {
+                    pinStyle = 'not-working-pin';
+                    pinSvg = crossIconSVG;
+                }
+
+                const customIcon = L.divIcon({ 
+                    html: `<div class="custom-pin ${pinStyle}">${pinSvg}</div>`, 
+                    className: '', 
+                    iconSize: [36, 36], 
+                    iconAnchor: [18, 18] 
+                });
+
+                const m = L.marker([item.lat, item.lng], { icon: customIcon }).addTo(map);
                 m.bindPopup(`<strong class="text-[#235937]">${item.fantasia}</strong><br><span class="text-xs text-slate-500">${item.endereco}</span>`);
                 markers.push(m);
             });
@@ -1306,11 +1330,6 @@ AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGR
         }
 
         // --- GESTOS E UI COMPLEMENTAR ---
-        let startY = 0, currentY = 0, isDragging = false;
-        dragHeader.addEventListener('touchstart', (e) => { if(window.innerWidth >= 1024 || e.target.closest('button')) return; startY = e.touches[0].clientY; isDragging = true; sheet.style.transition = 'none'; });
-        dragHeader.addEventListener('touchmove', (e) => { if(!isDragging) return; currentY = e.touches[0].clientY; let diff = currentY - startY; if(isSheetOpen && diff > 0) sheet.style.transform = `translateY(${diff}px)`; });
-        dragHeader.addEventListener('touchend', (e) => { if(!isDragging) return; isDragging = false; sheet.style.transition = ''; let diff = currentY - startY; if(diff > 100) toggleSheetJS(false); else toggleSheetJS(true); });
-
         function toggleSheetJS(open) { isSheetOpen = open; sheet.style.transform = open ? 'translateY(0)' : `translateY(calc(100% - 40px))`; document.body.classList.toggle('sheet-collapsed', !open); }
         function handleSearch(v) { document.getElementById('suggestions-box').classList.toggle('hidden', v.length < 2); renderAll(false); }
         function toggleFilter(t) { if(t==='all'){ activeFilters.clear(); activeFilters.add('all'); } else { activeFilters.delete('all'); activeFilters.has(t) ? activeFilters.delete(t) : activeFilters.add(t); if(!activeFilters.size) activeFilters.add('all'); } renderAll(false); }
@@ -1321,7 +1340,23 @@ AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGR
         function openActionMenu(e, id) { e.stopPropagation(); activeStationId = id; const menu = document.getElementById('action-menu'); menu.classList.remove('hidden'); menu.style.top = e.clientY + 'px'; menu.style.left = (e.clientX - 200) + 'px'; setTimeout(() => menu.classList.remove('opacity-0', 'scale-95'), 10); document.getElementById('action-menu-backdrop').classList.remove('hidden'); }
         function closeActionMenu() { const menu = document.getElementById('action-menu'); menu.classList.add('opacity-0', 'scale-95'); setTimeout(() => menu.classList.add('hidden'), 200); document.getElementById('action-menu-backdrop').classList.add('hidden'); }
 
-        window.onload = async () => { initMap(); processStations(); await baixarStatusDoBanco(); };
+        // --- EVENTOS INICIAIS ---
+        window.onload = async () => { 
+            initMap(); 
+            processStations(); 
+            
+            if (typeof supabase !== 'undefined') {
+                supabaseDB = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                await baixarStatusDoBanco();
+            } else {
+                console.error("Erro: A biblioteca do Supabase não carregou.");
+            }
+        };
+
+        let startY = 0, isDragging = false;
+        dragHeader.addEventListener('touchstart', (e) => { if(window.innerWidth >= 1024 || e.target.closest('button')) return; startY = e.touches[0].clientY; isDragging = true; sheet.style.transition = 'none'; }, {passive: true});
+        dragHeader.addEventListener('touchmove', (e) => { if(!isDragging) return; let diff = e.touches[0].clientY - startY; if(isSheetOpen && diff > 0) sheet.style.transform = `translateY(${diff}px)`; }, {passive: true});
+        dragHeader.addEventListener('touchend', (e) => { if(!isDragging) return; isDragging = false; sheet.style.transition = ''; toggleSheetJS(true); });
     </script>
 </body>
 </html>
