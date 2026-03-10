@@ -1142,7 +1142,7 @@ AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGR
         const sheet = document.getElementById('bottom-sheet');
         const dragHeader = document.getElementById('drag-header');
 
-        // 3. CAPTURANDO A LISTA DO HTML (Protegido contra quebra de string)
+        // 3. CAPTURANDO A LISTA (Protegido contra erro de string)
         const listaSuja = document.getElementById('dados-brutos').value;
 
         // --- FUNÇÕES DE LIMPEZA E ID ---
@@ -1187,8 +1187,6 @@ AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGR
                     const raw = rawData.find(s => s.id === activeStationId);
                     if (raw) raw.status = newStatus;
                     processStations();
-                } else {
-                    console.error("Erro ao salvar:", error);
                 }
             }
             closeActionMenu();
@@ -1329,9 +1327,107 @@ AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGR
             }
         }
 
-        // --- GESTOS E UI COMPLEMENTAR ---
-        function toggleSheetJS(open) { isSheetOpen = open; sheet.style.transform = open ? 'translateY(0)' : `translateY(calc(100% - 40px))`; document.body.classList.toggle('sheet-collapsed', !open); }
-        function handleSearch(v) { document.getElementById('suggestions-box').classList.toggle('hidden', v.length < 2); renderAll(false); }
+        // --- AUTOCOMPLETAR E BUSCA ---
+        function handleSearch(val) {
+            const box = document.getElementById('suggestions-box');
+            if (val.length < 2) {
+                box.classList.add('hidden');
+                renderAll(false);
+                return;
+            }
+            
+            const valLower = val.toLowerCase();
+            const suggestionsSet = new Set();
+            
+            rawData.forEach(s => {
+                if (s.cidade && s.cidade.toLowerCase().includes(valLower)) suggestionsSet.add(s.cidade);
+                if (s.fantasia && s.fantasia.toLowerCase().includes(valLower)) suggestionsSet.add(s.fantasia);
+            });
+
+            const suggestions = Array.from(suggestionsSet).slice(0, 5);
+            
+            if (suggestions.length > 0) {
+                box.innerHTML = suggestions.map(text => {
+                    const safeText = text.replace(/'/g, "\\'");
+                    return `<li class="px-4 py-3 hover:bg-slate-50 active:bg-slate-100 cursor-pointer text-sm font-medium text-slate-700 border-b border-slate-50 last:border-0 flex items-center gap-2" onclick="selectSuggestion(event, '${safeText}')">
+                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
+                        ${text}
+                    </li>`;
+                }).join('');
+                box.classList.remove('hidden');
+            } else {
+                box.classList.add('hidden');
+            }
+            renderAll(false);
+        }
+
+        function selectSuggestion(e, text) {
+            if (e) e.preventDefault();
+            document.getElementById('city-search').value = text;
+            document.getElementById('suggestions-box').classList.add('hidden');
+            renderAll(true);
+        }
+
+        // Fecha a sugestão ao clicar fora
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#city-search') && !e.target.closest('#suggestions-box')) {
+                const box = document.getElementById('suggestions-box');
+                if(box) box.classList.add('hidden');
+            }
+        });
+
+        // --- GESTOS ORIGINAIS (SWIPE SUAVE) DA LISTA ---
+        let startY = 0, currentY = 0, isDragging = false, isClick = true;
+
+        dragHeader.addEventListener('touchstart', (e) => { 
+            if(window.innerWidth >= 1024 || e.target.tagName === 'INPUT' || e.target.closest('button')) return; 
+            startY = e.touches[0].clientY; 
+            currentY = startY;
+            isDragging = true; 
+            isClick = true;
+            sheet.style.transition = 'none'; 
+        }, {passive: true});
+
+        dragHeader.addEventListener('touchmove', (e) => { 
+            if(!isDragging) return; 
+            currentY = e.touches[0].clientY;
+            const diffY = currentY - startY;
+            if (Math.abs(diffY) > 10) isClick = false;
+
+            if(isSheetOpen && diffY > 0) {
+                sheet.style.transform = `translateY(${diffY}px)`; 
+            } else if (!isSheetOpen && diffY < 0) {
+                sheet.style.transform = `translateY(calc(100% - 40px + ${diffY}px))`;
+            }
+        }, {passive: true});
+
+        dragHeader.addEventListener('touchend', (e) => { 
+            if(!isDragging) return; 
+            isDragging = false; 
+            sheet.style.transition = ''; 
+            
+            if (isClick) {
+                toggleSheetJS();
+                return;
+            }
+
+            const diffY = currentY - startY;
+            if (isSheetOpen && diffY > 50) {
+                toggleSheetJS(false);
+            } else if (!isSheetOpen && diffY < -50) {
+                toggleSheetJS(true);
+            } else {
+                toggleSheetJS(isSheetOpen);
+            }
+        });
+
+        function toggleSheetJS(forceState) { 
+            isSheetOpen = forceState !== undefined ? forceState : !isSheetOpen; 
+            sheet.style.transform = isSheetOpen ? 'translateY(0)' : `translateY(calc(100% - 40px))`; 
+            document.body.classList.toggle('sheet-collapsed', !isSheetOpen); 
+        }
+
+        // --- FILTROS E MENUS COMPLEMENTARES ---
         function toggleFilter(t) { if(t==='all'){ activeFilters.clear(); activeFilters.add('all'); } else { activeFilters.delete('all'); activeFilters.has(t) ? activeFilters.delete(t) : activeFilters.add(t); if(!activeFilters.size) activeFilters.add('all'); } renderAll(false); }
         function openConfig() { document.getElementById('config-modal').classList.replace('hidden', 'flex'); }
         function closeConfig() { document.getElementById('config-modal').classList.replace('flex', 'hidden'); }
@@ -1352,11 +1448,6 @@ AUTO POSTO MARANELLO	AVENIDA GENERAL PLINIO TOURINHO, 2600 - BOM JESUS, RIO NEGR
                 console.error("Erro: A biblioteca do Supabase não carregou.");
             }
         };
-
-        let startY = 0, isDragging = false;
-        dragHeader.addEventListener('touchstart', (e) => { if(window.innerWidth >= 1024 || e.target.closest('button')) return; startY = e.touches[0].clientY; isDragging = true; sheet.style.transition = 'none'; }, {passive: true});
-        dragHeader.addEventListener('touchmove', (e) => { if(!isDragging) return; let diff = e.touches[0].clientY - startY; if(isSheetOpen && diff > 0) sheet.style.transform = `translateY(${diff}px)`; }, {passive: true});
-        dragHeader.addEventListener('touchend', (e) => { if(!isDragging) return; isDragging = false; sheet.style.transition = ''; toggleSheetJS(true); });
     </script>
 </body>
 </html>
